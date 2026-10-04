@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About QuickNotes</title>
+  <style>
+    body {
+      font-family: system-ui, Arial, sans-serif;
+      line-height: 1.6;
+      margin: 0 auto;
+      max-width: 46rem;
+      padding: 1.5rem;
+    }
+
+    header {
+      border-bottom: 2px solid #333;
+      margin-bottom: 1.5rem;
+    }
+
+    h1 {
+      margin-bottom: 0.25rem;
+    }
+
+    .tagline {
+      color: #555;
+      margin-top: 0;
+    }
+
+    nav ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    nav li {
+      display: inline-block;
+      margin-right: 1rem;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th,
+    td {
+      border: 1px solid #999;
+      padding: 0.4rem 0.6rem;
+      text-align: left;
+    }
+
+    form p {
+      margin: 0 0 1rem;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+    }
+
+    footer {
+      border-top: 1px solid #999;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>QuickNotes</h1>
+    <p class="tagline">Capture ideas fast, keep them organised.</p>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h2>About QuickNotes</h2>
+    <p>
+      QuickNotes is a lightweight note-taking app for capturing thoughts the
+      moment they occur. It keeps every note short, searchable and easy to
+      retrieve, so you can stay focused on the work in front of you.
+    </p>
+
+    <section>
+      <h3>How to use QuickNotes</h3>
+      <ol>
+        <li>Open QuickNotes and choose <em>New note</em> to start from a blank page.</li>
+        <li>Type your note, giving it a short title so it is easy to recognise later.</li>
+        <li>Press <kbd>Ctrl</kbd> + <kbd>S</kbd> to save the note to your library.</li>
+        <li>Use the search box to find a saved note by title or by keyword.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h3>Features</h3>
+      <ul>
+        <li>Fast capture: open a note and start typing with no setup</li>
+        <li>Full-text search across every saved note</li>
+        <li>Tags and notebooks for organising notes by project or topic</li>
+        <li>Offline storage, so your notes stay on your own device</li>
+        <li>Keyboard shortcuts for the most common actions</li>
+      </ul>
+    </section>
+
+    <section>
+      <h3>Keyboard shortcuts</h3>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Shortcut</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>N</kbd></td>
+            <td>Create a new note</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
+            <td>Save the current note</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>F</kbd></td>
+            <td>Search all saved notes</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>/</kbd></td>
+            <td>Show the list of keyboard shortcuts</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3>Send feedback</h3>
+      <p>
+        Spotted something confusing or missing? Tell us below and we will get
+        back to you.
+      </p>
+      <form action="#" method="post">
+        <p>
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required>
+        </p>
+        <p>
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required>
+        </p>
+        <p>
+          <label for="message">Message</label>
+          <textarea id="message" name="message" rows="5" required></textarea>
+        </p>
+        <p>
+          <button type="submit">Send feedback</button>
+        </p>
+      </form>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 QuickNotes. Built as part of the Web Foundations course.</p>
+  </footer>
+
+</body>
+</html>
