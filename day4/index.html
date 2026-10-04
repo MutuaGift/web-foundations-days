@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickNotes</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+
+  <main>
+    <h1>QuickNotes</h1>
+    <p class="hint">Type a note below. It is saved as a draft automatically.</p>
+
+    <label for="note-text">Your note</label>
+    <textarea id="note-text" rows="8" placeholder="Start typing..."></textarea>
+
+    <p id="char-count">0 / 200 characters</p>
+    <p id="word-count">0 words</p>
+
+    <div class="actions">
+      <button type="button" id="clear-btn">Clear</button>
+      <button type="button" id="theme-toggle">Dark mode</button>
+    </div>
+  </main>
+
+</body>
+</html>

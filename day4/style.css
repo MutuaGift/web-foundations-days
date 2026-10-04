@@ -1,0 +1,139 @@
+/* ============================================
+   QuickNotes - Day 4
+   All colours live in variables on :root so the
+   dark theme only has to redefine them.
+   ============================================ */
+
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --text: #1f2933;
+  --muted: #616e7c;
+  --border: #cbd2d9;
+  --accent: #2b6cb0;
+  --accent-text: #ffffff;
+  --shadow: rgba(31, 41, 51, 0.12);
+}
+
+/* The dark theme only redefines the variables */
+body.dark {
+  --bg: #12161c;
+  --surface: #1f2933;
+  --text: #e4e7eb;
+  --muted: #9aa5b1;
+  --border: #3e4c59;
+  --accent: #63b3ed;
+  --accent-text: #12161c;
+  --shadow: rgba(0, 0, 0, 0.5);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--text);
+  background-color: var(--bg);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+h1 {
+  margin-bottom: 0.25rem;
+}
+
+.hint {
+  margin-top: 0;
+  color: var(--muted);
+}
+
+label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+textarea {
+  width: 100%;
+  padding: 0.75rem;
+  font: inherit;
+  color: var(--text);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  resize: vertical;
+}
+
+textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Counters.
+   Deliberately element selectors, not #char-count / #word-count:
+   an #id rule here has higher specificity than .warning / .over and
+   would stop the counter colours from ever applying. */
+main p {
+  margin: 0.4rem 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* Over 180 characters: orange text */
+.warning {
+  color: orange;
+}
+
+/* Over 200 characters: red, bold text.
+   Declared after .warning so it wins if both apply. */
+.over {
+  color: red;
+  font-weight: bold;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+button {
+  padding: 0.6rem 1.2rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-text);
+  background-color: var(--accent);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: filter 0.2s ease, transform 0.15s ease;
+}
+
+button:hover {
+  filter: brightness(1.12);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#clear-btn {
+  color: var(--text);
+  background-color: transparent;
+  border-color: var(--border);
+}
