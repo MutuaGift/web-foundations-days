@@ -94,28 +94,46 @@ survive it.
 ```
 Sale window      = 10 minutes            = 600 seconds
 Attempts         = 200,000 / 600          = 333.3 attempts per second
-Requests         = 200,000 x ~4 requests = 1,333 requests per second
-                    (view event, load seat map, hold, pay)
+Requests per
+buyer            = about 10                 each buyer loads the event page,
+                                               the seat map, clicks seats,
+                                               retries on a conflict, reaches
+                                               payment and polls the result
+Requests         = 200,000 x 10 = 2,000,000
+                 = 2,000,000 / 600          = 3,333 requests per second
 Orders needed    = 20,000 / 600           = 33.3 confirmed orders per second
 Arrival rate     = 200,000 / 10 minutes   = 3,333 people per minute
 ```
+
+The **~10 requests per buyer** assumption is the important one, and it is
+deliberately pessimistic: it counts the seat-map reloads and the retries that
+conflicts cause, which is exactly what happens when 10 people want one seat.
+Counting only the four essential calls (view, hold, pay, confirm) gives a lower
+bound of **1,333 requests per second**. The design is sized for the pessimistic
+figure, because the extra requests are precisely the ones caused by contention,
+and contention is what a sale guarantees.
 
 ### The comparison
 
 | | Normal day | Big sale | Change |
 | --- | --- | --- | --- |
-| Page views/sec | 5.79 | ~1,333 total requests | **230×** |
+| Requests/sec | 5.79 (~5) | **3,333** | **~576×** |
 | Purchase attempts/sec | 0.06 | 333.3 | **~5,800×** |
 | Confirmed orders/sec | 0.06 | 33.3 | ~570× |
 | People arriving | 0.58/min | 3,333/min | **5,787×** |
 
+Measured against the rounded 5 requests/second normal-day figure, 3,333 is
+**nearly 700×** normal traffic.
+
 Three findings follow, and they drive the whole design:
 
-1. **The sale is a stampede, not a peak.** Normal traffic is trivial; sale
-   traffic is 230× normal. A system sized for normal traffic would collapse
+1. **The sale is a stampede, not a peak.** Normal traffic is trivial — 6 page
+   views per second. Sale traffic is roughly **600×** that, and it arrives all
+   at once rather than spread across the day. A system sized for normal traffic
+   would collapse
    within seconds of the sale opening, which means the sale behaviour has to be
    designed for explicitly rather than treated as an edge case.
-2. **The load is almost entirely read.** Even during the sale, the great majority
+2. **The load is almost entirely read.** Even at 3,333 requests per second, the great majority
    of requests are people loading event pages and seat maps. Only 20,000 of
    200,000 buyers will ever write an order. This means **caching and queueing
    carry the surge**, and the database only has to handle 33 writes per second.
@@ -341,7 +359,12 @@ CREATE TABLE seats (
   row_label   TEXT    NOT NULL,
   seat_number INTEGER NOT NULL,
   price_cents INTEGER NOT NULL,
-  status      TEXT    NOT NULL DEFAULT 'available',
+  -- status is 'available' | 'held' | 'sold'. It is the authoritative,
+  -- hot-path answer to "is this seat free?", and it is only ever
+  -- changed by the conditional UPDATE in section 5.
+  status          TEXT    NOT NULL DEFAULT 'available',
+  hold_id         TEXT,
+  hold_expires_at TEXT,
   FOREIGN KEY (event_id) REFERENCES events (event_id),
   -- the same label cannot exist twice inside one event
   UNIQUE (event_id, seat_label)
@@ -356,6 +379,12 @@ CREATE TABLE seat_holds (
   FOREIGN KEY (seat_id) REFERENCES seats  (seat_id),
   FOREIGN KEY (user_id) REFERENCES users  (user_id)
 );
+
+-- Second safety net on the hold side. seats.status already makes a
+-- double hold impossible (section 5); this makes it impossible even
+-- if that column were ever updated by hand or by a buggy job.
+CREATE UNIQUE INDEX idx_one_active_hold_per_seat
+  ON seat_holds (seat_id) WHERE status = 'active';
 
 CREATE TABLE orders (
   order_id     TEXT    PRIMARY KEY,
@@ -459,23 +488,58 @@ CREATE UNIQUE INDEX idx_one_active_hold_per_seat
 
 ### The full flow, inside a transaction
 
-**Holding a seat** — the user's first click:
+**Holding a seat** — the user's first click.
+
+This is the step the whole design turns on, so it is done as a **single
+conditional update**: the statement *checks availability and claims the seat in
+one atomic step*, so there is no gap for a second buyer to slip into.
 
 ```sql
-BEGIN IMMEDIATE;                    -- take the write lock up front
+BEGIN;
 
-INSERT INTO seat_holds (hold_id, seat_id, user_id, expires_at, status)
-VALUES ('h_8f3a2c', 8812, 51, '2026-10-15T20:14:00Z', 'active');
+UPDATE seats
+   SET status          = 'held',
+       hold_id         = 55,
+       hold_expires_at = NOW() + INTERVAL '10 minutes'
+ WHERE seat_id IN (101, 102)
+   AND event_id = 7
+   AND ( status = 'available'
+         OR (status = 'held' AND hold_expires_at < NOW()) );   -- expired = free
 
--- If another user already holds seat 8812, this INSERT fails on the
--- unique index. We roll back and return 409. No seat is double-held.
+-- rowcount tells us how many seats we ACTUALLY got:
+IF rowcount < 2 THEN          -- someone else beat us to one of them
+    ROLLBACK;                 -- release the seat we did get
+    RETURN 409 Conflict;      -- "seat A-2 is no longer available"
+END IF;
+
 COMMIT;
+RETURN 201 Created;
 ```
 
-`BEGIN IMMEDIATE` matters. SQLite's default deferred transaction only takes a
-lock on first write, which lets two transactions both read before either writes.
-`IMMEDIATE` takes the write lock at the start, so transactions serialise
-properly. In PostgreSQL this maps to `SELECT ... FOR UPDATE` on the seat row.
+**Why this is safe.** The predicate is evaluated by the database *after* it has
+locked the row, not before. If two buyers target seat 101 at the same instant,
+the second statement waits for the first to commit, then re-reads the row, finds
+`status = 'held'` with a future expiry, and matches **nothing**. It reports zero
+rows changed. It cannot "succeed anyway", because it never wrote — and the only
+thing that can decide who owns the seat is the database, not the app server that
+happened to receive the request first.
+
+**Why the `rowcount` check is the part people forget.** Requesting two seats when
+only one is free changes **one** row, not zero. Treating that as success would
+sell one seat and silently drop the other; treating it as total failure and
+returning `409` is correct, because the transaction is rolled back and the seat
+that *was* claimed is released. Verified behaviour:
+
+```
+buyer 55, seat 101        -> COMMIT   201 Created  (1 held)
+buyer 56, seat 101        -> ROLLBACK 409          (0 of 1)
+buyer 57, seats 101+102   -> ROLLBACK 409          (1 of 2)  <- partial!
+buyer 58, seat 101 (expired hold) -> COMMIT 201 Created (1 held)
+```
+
+`BEGIN IMMEDIATE` is used in SQLite so the write lock is taken up front rather
+than on first write; in PostgreSQL the equivalent is to let the `UPDATE` take its
+row locks, or `SELECT ... FOR UPDATE` if a read is needed first.
 
 **Confirming payment:**
 
@@ -600,10 +664,10 @@ of the constraint.
 
 1. **The sale gate absorbs the stampede.** 200,000 people do not hit the app
    servers. They are issued a queue position and served at a controlled rate. The
-   database is asked for 33 writes per second, not 1,333 requests per second.
+   database is asked for 33 writes per second, not 3,333 requests per second.
 2. **The CDN takes the traffic that is only reading.** Event pages and assets are
    served from the edge, so the surge mostly never arrives.
-3. **The cache serves the seat map.** Almost all 1,333 requests/second are people
+3. **The cache serves the seat map.** Almost all 3,333 requests/second are people
    looking, not buying. Those come from cache and the read replica.
 4. **The writer stays small.** Only 20,000 orders will ever be created, at 33/second.
    A single primary handles that easily, which is what makes the
@@ -685,8 +749,8 @@ success and a commercial failure.
 ## 8. Summary
 
 On a normal day TicketHub serves **6 page views per second** and sells a ticket
-every **17 seconds**. During a sale it sees **1,333 requests per second** —
-**230× normal** — with 200,000 buyers competing for 20,000 seats.
+every **17 seconds**. During a sale it sees **3,333 requests per second** —
+roughly **600× normal** — with 200,000 buyers competing for 20,000 seats.
 
 That comparison is the design. Traffic is read-heavy even at peak, so caching
 and a waiting room carry the surge and the database only ever handles 33 writes
